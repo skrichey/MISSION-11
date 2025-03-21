@@ -1,84 +1,110 @@
 import React, { useState, useEffect } from 'react';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './App.css';
 
-// Define the Book interface
-export interface Book {
+interface Book {
   bookId: number;
   title: string;
   author: string;
   publisher: string;
   isbn: string;
   category: string;
-  price: number;
   pageCount: number;
+  price: number;
 }
 
-const Books: React.FC = () => {
+const Books = () => {
+  // State for books, total books, current page, and page size
   const [books, setBooks] = useState<Book[]>([]);
-  const [page, setPage] = useState<number>(1);
   const [totalBooks, setTotalBooks] = useState<number>(0);
+  const [pageNum, setPageNum] = useState<number>(1);
   const [pageSize, setPageSize] = useState<number>(5);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [sortBy, setSortBy] = useState<string>('Title');
 
-  // Fetch books data from the API
+  // Fetch books from the API
   const fetchBooks = async () => {
-    try {
-      setLoading(true); // Set loading to true before fetching
-      const response = await fetch(`https://localhost:5000/api/Books?page=${page}&pageSize=${pageSize}`);
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      const data = await response.json();
-      setBooks(data.books);
-      setTotalBooks(data.totalBooks); // Get total books for pagination
-    } catch (error) {
-      console.error('Error fetching books:', error);
-    } finally {
-      setLoading(false); // Set loading to false after fetch completes
-    }
+    const response = await fetch(
+      `https://localhost:5000/api/books?page=${pageNum}&pageSize=${pageSize}&sortBy=${sortBy}`
+    );
+    const data = await response.json();
+    setBooks(data.books);
+    setTotalBooks(data.totalBooks);
   };
 
+  // Effect to run when pageNum, pageSize, or sortBy changes
   useEffect(() => {
     fetchBooks();
-  }, [page, pageSize]); // Fetch books whenever page or pageSize changes
+  }, [pageNum, pageSize, sortBy]);
 
   // Calculate the total number of pages
   const totalPages = Math.ceil(totalBooks / pageSize);
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
+  // Handle page change
+  const handlePageChange = (newPageNum: number) => {
+    if (newPageNum > 0 && newPageNum <= totalPages) {
+      setPageNum(newPageNum);
+    }
+  };
+
+  // Handle page size change
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPageSize(Number(e.target.value));
+    setPageNum(1); // Reset to the first page whenever the page size changes
+  };
 
   return (
-    <div className="container">
-      <h1 className="my-4">Books</h1>
+    <div className="App">
+      <h1>Bookstore</h1>
 
-      {/* Display books */}
-      <ul className="list-group mb-4">
+      {/* Sort by dropdown */}
+      <select onChange={(e) => setSortBy(e.target.value)} value={sortBy}>
+        <option value="Title">Title</option>
+        <option value="Author">Author</option>
+      </select>
+
+      {/* Page size dropdown */}
+      <select onChange={handlePageSizeChange} value={pageSize}>
+        <option value="5">5</option>
+        <option value="10">10</option>
+        <option value="16">16</option>
+        <option value="20">20</option>
+      </select>
+
+      {/* Books List */}
+      <ul>
         {books.map((book) => (
-          <li key={book.bookId} className="list-group-item">
-            <strong>{book.title}</strong> by {book.author}
+          <li key={book.bookId}>
+            <h3>{book.title}</h3>
+            <p>Author: {book.author}</p>
+            <p>Publisher: {book.publisher}</p>
+            <p>ISBN: {book.isbn}</p>
+            <p>Category: {book.category}</p>
+            <p>Pages: {book.pageCount}</p>
+            <p>Price: ${book.price}</p>
           </li>
         ))}
       </ul>
 
-      {/* Pagination Controls */}
-      <div className="d-flex justify-content-between align-items-center">
+      {/* Pagination Buttons */}
+      <div className="pagination">
         <button
-          className="btn btn-primary"
-          onClick={() => setPage(page > 1 ? page - 1 : 1)}
-          disabled={page === 1}
+          onClick={() => handlePageChange(pageNum - 1)}
+          disabled={pageNum === 1}
         >
           Previous
         </button>
-
-        <span>
-          Page {page} of {totalPages}
-        </span>
-
+        {[...Array(totalPages)].map((_, index) => (
+          <button
+            key={index}
+            onClick={() => handlePageChange(index + 1)}
+            className={pageNum === index + 1 ? 'active' : ''}
+          >
+            {index + 1}
+          </button>
+        ))}
         <button
-          className="btn btn-primary"
-          onClick={() => setPage(page < totalPages ? page + 1 : totalPages)}
-          disabled={page === totalPages}
+          onClick={() => handlePageChange(pageNum + 1)}
+          disabled={pageNum === totalPages}
         >
           Next
         </button>
@@ -87,5 +113,4 @@ const Books: React.FC = () => {
   );
 };
 
-// Ensure default export
 export default Books;
